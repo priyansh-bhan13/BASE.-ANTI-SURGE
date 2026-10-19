@@ -1,0 +1,233 @@
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 4%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+
+    --primary: 0 0% 4%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 88%;
+    --ring: 0 0% 4%;
+
+    --radius: 0px;
+  }
+
+  .dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
+
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 83%;
+  }
+}
+
+@layer base {
+  html {
+    font-size: 100%;
+  }
+  * {
+    @apply border-border;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-color: #FAFAFA;
+    color: #0A0A0A;
+    font-family: 'Hanken Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Hanken Grotesk', -apple-system, sans-serif;
+  }
+  .font-mono, code, kbd {
+    font-family: 'Hanken Grotesk', -apple-system, sans-serif;
+  }
+}
+
+/* =========================================================================
+   BASE monochrome pointer-following sweep surface
+   Strictly geometric, sharp 0px radius, Hanken Grotesk typography
+   ========================================================================= */
+
+.sweep-surface {
+  --sweep-x: 50%;
+  --sweep-y: 50%;
+
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+
+  overflow: hidden;
+  box-sizing: border-box;
+
+  border-radius: 0px !important;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: 'Hanken Grotesk', -apple-system, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+/* Light / Secondary / Badge Variant (Crisp White resting, Inverts to Black on Sweep) */
+.sweep-surface--light,
+.sweep-surface:not(.sweep-surface--dark) {
+  background-color: #ffffff;
+  color: #0a0a0a;
+  border: 1px solid #e5e5e5;
+}
+
+.sweep-surface--light:hover,
+.sweep-surface:not(.sweep-surface--dark):hover {
+  border-color: #000000;
+}
+
+.sweep-surface--light .sweep-surface__reveal,
+.sweep-surface:not(.sweep-surface--dark) .sweep-surface__reveal {
+  background-color: #000000;
+  color: #ffffff;
+  border-radius: 0px !important;
+}
+
+/* Dark / Primary CTA Variant (Solid Black resting, Inverts to White on Sweep) */
+.sweep-surface--dark {
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+}
+
+.sweep-surface--dark:hover {
+  border-color: #333333;
+}
+
+.sweep-surface--dark .sweep-surface__reveal {
+  background-color: #ffffff;
+  color: #000000;
+  border-radius: 0px !important;
+}
+
+.sweep-surface[data-sweep-element="button"] {
+  cursor: pointer;
+  padding: 0.85rem 1.75rem;
+  min-height: 48px;
+}
+
+.sweep-surface[data-sweep-element="span"] {
+  cursor: inherit;
+}
+
+.sweep-surface__base,
+.sweep-surface__reveal-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.sweep-surface__base {
+  position: relative;
+  z-index: 1;
+}
+
+.sweep-surface__reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 0px !important;
+  pointer-events: none;
+
+  clip-path: ellipse(
+    0% 0% at var(--sweep-x, 50%) var(--sweep-y, 50%)
+  );
+
+  transition:
+    clip-path 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sweep-surface[data-sweep-active="true"] .sweep-surface__reveal {
+  clip-path: ellipse(
+    70% 200% at var(--sweep-x, 50%) var(--sweep-y, 50%)
+  );
+}
+
+.sweep-surface:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.sweep-surface:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+}
+
+.sweep-surface:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep-surface__reveal {
+    transition: none;
+  }
+}

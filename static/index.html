@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Base | Ride-Hailing with Surge-Price Protection</title>
+  
+  <!-- Google Fonts: Inter & IBM Plex Mono for StudioBlank Design System -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS for Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <!-- Base Theme CSS -->
+  <link rel="stylesheet" href="/static/css/base_theme.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="base-nav">
+    <div class="base-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+      <span>Base</span>
+      <span class="base-logo-badge">Surge Protection</span>
+    </div>
+
+    <!-- View Switcher Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab-btn active" data-tab="split">Split View (All 3)</button>
+      <button class="nav-tab-btn" data-tab="rider">Rider App</button>
+      <button class="nav-tab-btn" data-tab="driver">Driver App</button>
+      <button class="nav-tab-btn" data-tab="operator">Operator Panel</button>
+      <button class="nav-tab-btn" data-tab="explainer">How Surge is Gamed</button>
+    </nav>
+
+    <!-- Simulation Injectable Clock Controls -->
+    <div class="nav-controls">
+      <div class="clock-chip">
+        <span class="clock-live-dot" id="ws-live-indicator"></span>
+        <span id="clock-display-time">--:--:--</span>
+        <span id="clock-offset-badge" style="display:none; font-size:11px; color:var(--color-primary); font-weight:700; font-family:var(--font-mono);"></span>
+      </div>
+      <button class="clock-action-btn" id="btn-adv-1m" title="Advance clock by 1 minute">+1m</button>
+      <button class="clock-action-btn" id="btn-adv-5m" title="Advance clock by 5 minutes">+5m</button>
+      <button class="clock-action-btn" id="btn-reset-clock" title="Reset to real system time" style="color:#CBCBCB;">Reset</button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 1: SPLIT-SCREEN VIEW (Rider + Driver + Operator Side-by-Side)        -->
+  <!-- ========================================================================= -->
+  <main id="view-split" class="view-container active">
+    <div class="split-view-grid">
+      
+      <!-- Col 1: Rider Column -->
+      <section class="split-col">
+        <div class="split-col-header">
+          <div class="split-col-title">
+            <span style="font-size:18px;">👤</span> Rider Experience
+          </div>
+          <span style="font-size:12px; font-weight:600; color:var(--base-gray-700);">Bandra / BKC, Mumbai</span>
+        </div>
+
+        <div style="padding: 16px;">
+          <!-- Map Container -->
+          <div id="rider-map" class="map-frame" style="height: 260px;"></div>
+
+          <!-- Preset Route Pills -->
+          <div style="display:flex; gap:8px; margin-bottom:12px; overflow-x:auto;">
+            <button class="edit-pill-btn preset-loc-btn" data-loc="bkc_to_bandra">📍 BKC &rarr; Bandra West</button>
+            <button class="edit-pill-btn preset-loc-btn" data-loc="bandra_to_khar">📍 Bandra &rarr; Khar</button>
+          </div>
+
+          <!-- Booking Panel (When idle or quoting) -->
+          <div id="rider-booking-panel">
+            <div class="base-input-row">
+              <div class="input-icon-label">
+                <span class="input-icon">◉</span>
+                <span id="rider-pickup-label">BKC Complex, Mumbai</span>
+              </div>
+              <button class="edit-pill-btn" onclick="RiderApp.clickMode='pickup'">Set on Map</button>
+            </div>
+
+            <div class="base-input-row">
+              <div class="input-icon-label">
+                <span class="input-icon">■</span>
+                <span id="rider-dropoff-label">Linking Road, Bandra West</span>
+              </div>
+              <button class="edit-pill-btn" onclick="RiderApp.clickMode='dropoff'">Set on Map</button>
+            </div>
+
+            <!-- Vehicle Selection Cards -->
+            <div class="vehicle-selector">
+              <div class="vehicle-card selected" data-vehicle="car">
+                <div class="vehicle-img-wrap">
+                  <span style="font-size: 26px;">🚗</span>
+                </div>
+                <div class="vehicle-name">UberGo</div>
+                <div class="vehicle-fare" id="fare-opt-car">₹--</div>
+              </div>
+
+              <div class="vehicle-card" data-vehicle="rickshaw">
+                <div class="vehicle-img-wrap">
+                  <span style="font-size: 26px;">🛺</span>
+                </div>
+                <div class="vehicle-name">Auto</div>
+                <div class="vehicle-fare" id="fare-opt-auto">₹--</div>
+              </div>
+
+              <div class="vehicle-card" data-vehicle="suv">
+                <div class="vehicle-img-wrap">
+                  <span style="font-size: 26px;">🚙</span>
+                </div>
+                <div class="vehicle-name">Premier</div>
+                <div class="vehicle-fare" id="fare-opt-suv">₹--</div>
+              </div>
+            </div>
+
+            <!-- Quote Breakdown Summary -->
+            <div class="base-card" style="padding: 16px; margin-bottom: 16px; background: var(--surface-base);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <span style="font-size:11px; color:var(--color-info); text-transform:uppercase; letter-spacing:0.05em;">Estimated Fare</span>
+                  <div style="font-size:24px; font-weight:700; font-family:var(--font-mono);" id="rider-fare-amount">₹--</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:12px; font-family:var(--font-mono); color:var(--color-info);" id="rider-quote-distance">-- km</div>
+                  <div style="font-size:12px; font-family:var(--font-mono); color:var(--color-info);" id="rider-quote-time">-- min</div>
+                  <div style="font-size:11px; font-family:var(--font-mono); color:var(--color-primary); font-weight:600;" id="rider-quote-zone">BKC</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Let's Go Button (StudioBlank) -->
+            <button id="rider-btn-book" class="base-btn-primary">
+              Let's go &nbsp; <span style="font-size:16px;">&rarr;</span>
+            </button>
+          </div>
+
+          <!-- Ride In-Progress Panel -->
+          <div id="rider-status-panel" style="display:none;">
+            <div class="base-card" style="border-left:4px solid var(--base-black);">
+              <h3 id="rider-status-title" style="font-size:18px; font-weight:800; margin-bottom:4px;">Finding your driver</h3>
+              <p id="rider-status-desc" style="font-size:13px; color:var(--base-gray-700); margin-bottom:12px;">Connecting with nearest vehicle in Mumbai...</p>
+
+              <!-- Contact Driver Row (from Base UI image) -->
+              <div id="rider-driver-contact-row" class="contact-driver-row" style="display:none;">
+                <div class="driver-profile">
+                  <div class="driver-avatar">AS</div>
+                  <div class="driver-details">
+                    <h4 id="rider-driver-name">Aarav Sharma</h4>
+                    <p id="rider-driver-vehicle">Sedan • MH 02 BK 4092</p>
+                  </div>
+                </div>
+                <div class="contact-action-pills">
+                  <button class="action-circle-btn" title="Chat with driver">💬</button>
+                  <button class="action-circle-btn" title="Call driver">📞</button>
+                </div>
+              </div>
+
+              <button id="rider-btn-reset" class="base-btn-primary" style="margin-top:14px; display:none;">
+                Book Another Ride &nbsp; &rarr;
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Col 2: Driver Column -->
+      <section class="split-col">
+        <div class="split-col-header">
+          <div class="split-col-title">
+            <span style="font-size:18px;">🚘</span> Driver Experience
+          </div>
+          <div id="driver-heartbeat-status" style="font-size:11px; font-weight:600; color:var(--base-green);">
+            Heartbeat: Live (every 5s)
+          </div>
+        </div>
+
+        <div style="padding: 16px;">
+          <!-- Driver Switcher -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <select id="driver-account-select" style="font-family:inherit; padding:6px 12px; border:1px solid var(--color-tertiary); font-size:13px; background:var(--color-white); width:100%;">
+              <option value="driver_1001">Aarav Sharma (BKC - Sedan)</option>
+              <option value="driver_1002">Rohan Patel (BKC - Sedan)</option>
+              <option value="driver_1003">Vikram Singh (BKC - Rickshaw)</option>
+              <option value="driver_1006">Sunil Nair (Bandra West)</option>
+            </select>
+          </div>
+
+          <!-- Driver Profile Card with Online/Offline Toggle -->
+          <div class="base-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h3 id="driver-profile-name" style="font-size:15px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Aarav Sharma</h3>
+                <span id="driver-status-badge" class="status-badge Normal">YOU ARE ONLINE</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="driver-online-switch" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Driver Map -->
+          <div id="driver-map" class="map-frame" style="height: 200px;"></div>
+
+          <!-- Incoming Offer Card (with 15s timer) -->
+          <div id="driver-offer-card" style="display:none;" class="base-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:11px; font-weight:700; color:var(--color-primary); text-transform:uppercase; letter-spacing:0.06em;">NEW RIDE OFFER</span>
+              <span id="driver-offer-seconds" style="font-size:14px; font-weight:700; font-family:var(--font-mono); color:var(--color-error);">15s</span>
+            </div>
+
+            <!-- Timer countdown bar -->
+            <div style="width:100%; height:4px; background:var(--color-gray-200); margin-bottom:12px; overflow:hidden;">
+              <div id="driver-offer-timer-bar" style="width:100%; height:100%; background:var(--color-primary); transition: width 0.5s linear;"></div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+              <div>
+                <div style="font-size:24px; font-weight:700; font-family:var(--font-mono);" id="driver-offer-fare">₹--</div>
+                <div style="font-size:12px; color:var(--color-info);" id="driver-offer-rider">Passenger: Priyansh</div>
+              </div>
+              <span class="status-badge Protected" id="driver-offer-surge">1.0x Surge</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+              <button id="driver-btn-decline" class="base-btn-secondary" style="width:100%; justify-content:center;">
+                Decline
+              </button>
+              <button id="driver-btn-accept" class="base-btn-primary" style="padding:10px 16px;">
+                Accept &nbsp; &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Trip Progress Controls -->
+          <div id="driver-trip-panel" style="display:none;" class="base-card">
+            <span style="font-size:11px; font-weight:700; color:var(--color-success); text-transform:uppercase; letter-spacing:0.06em;">ACTIVE TRIP IN PROGRESS</span>
+            <p id="driver-trip-desc" style="font-size:14px; margin:8px 0 14px 0; font-weight:400;">Driving to Passenger Pickup Point</p>
+            <button id="driver-btn-trip-action" class="base-btn-primary">
+              Arrived at Pickup &nbsp; &rarr;
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Col 3: Operator Column -->
+      <section class="split-col" style="border-right:none; background-color:var(--base-gray-50);">
+        <div class="split-col-header">
+          <div class="split-col-title">
+            <span style="font-size:18px;">🛡️</span> Operator Surge Monitor
+          </div>
+          <span style="font-size:12px; font-weight:700; color:var(--base-blue);">Audit Engine</span>
+        </div>
+
+        <div style="padding: 16px;">
+          
+          <!-- Key Metrics Banner -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div class="base-card" style="margin-bottom:0; padding:14px;">
+              <div style="font-size:11px; color:var(--color-info); text-transform:uppercase; letter-spacing:0.05em;">Total Money Held Back</div>
+              <div style="font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--color-success);" id="op-metric-subsidy">₹0</div>
+              <div style="font-size:11px; color:var(--color-info);">Rider subsidy cost</div>
+            </div>
+            <div class="base-card" style="margin-bottom:0; padding:14px;">
+              <div style="font-size:11px; color:var(--color-info); text-transform:uppercase; letter-spacing:0.05em;">Protected Zones</div>
+              <div style="font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--color-primary);" id="op-metric-windows-count">0 Protected</div>
+              <div style="font-size:11px; color:var(--color-info);" id="op-metric-total-drivers">-- online</div>
+            </div>
+          </div>
+
+          <!-- Test Admin Controls -->
+          <div class="base-card" style="padding:16px; margin-bottom:16px; border:1px solid var(--color-tertiary);">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px; display:flex; justify-content:space-between;">
+              <span>Test Controls (No Simulator)</span>
+              <span style="color:var(--color-info); font-weight:400; font-family:var(--font-mono);">ADMIN</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button id="op-btn-attack-sim" class="base-btn-primary" style="font-size:12px; padding:10px 14px;">
+                ⚡ 1-Click Trigger: Coordinated Driver Spike
+              </button>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                <button id="op-btn-bulk-logout-all" class="base-btn-secondary" style="font-size:11px; justify-content:center;">
+                  Bulk Logout Drivers
+                </button>
+                <button id="op-btn-seed-drivers" class="base-btn-secondary" style="font-size:11px; justify-content:center;">
+                  Seed Test Drivers (+5)
+                </button>
+              </div>
+
+              <!-- Demo Mode & Config -->
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:12px;">
+                <span>Demo Mode (Peak threshold = 4)</span>
+                <label class="switch" style="width:40px; height:22px;">
+                  <input type="checkbox" id="op-config-demo-switch" checked>
+                  <span class="slider blue"></span>
+                </label>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                <span>Traffic Condition (Signal 4)</span>
+                <select id="op-config-traffic-select" style="font-size:12px; padding:3px 8px; height:32px;">
+                  <option value="normal">Normal (0.0)</option>
+                  <option value="worse_than_normal">Congested / Rain (+1.0)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zone Cards List -->
+          <div id="op-zone-cards-container">
+            <!-- Dynamic Zone Cards inserted via operator.js -->
+          </div>
+
+          <!-- Audit Log Mini Stream -->
+          <div class="base-card" style="padding:14px; margin-top:16px;">
+            <div style="font-size:12px; font-weight:700; text-transform:uppercase; margin-bottom:8px;">
+              Live Audit Log Stream
+            </div>
+            <div class="audit-table-wrap">
+              <table class="audit-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Zone</th>
+                    <th>Event</th>
+                    <th>Ord</th>
+                    <th>Charged</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="op-audit-table-body">
+                  <tr><td colspan="6" style="text-align:center;">Loading audit events...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 2: DEDICATED RIDER APP VIEW                                          -->
+  <!-- ========================================================================= -->
+  <section id="view-rider" class="view-container">
+    <div style="max-width:560px; margin: 30px auto; padding: 0 16px;">
+      <h1 style="font-size:32px; font-weight:800; margin-bottom:16px;">Where to?</h1>
+      <p style="color:var(--base-gray-700); margin-bottom:20px;">
+        Book a ride across Mumbai with guaranteed surge price stability.
+      </p>
+      <!-- Re-uses rider controls when in single-tab mode -->
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 3: DEDICATED DRIVER APP VIEW                                         -->
+  <!-- ========================================================================= -->
+  <section id="view-driver" class="view-container">
+    <div style="max-width:560px; margin: 30px auto; padding: 0 16px;">
+      <h1 style="font-size:32px; font-weight:800; margin-bottom:16px;">Driver Partner Hub</h1>
+      <p style="color:var(--base-gray-700); margin-bottom:20px;">
+        Accept ride offers, send heartbeats, and complete trips across Mumbai zones.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 4: DEDICATED OPERATOR PANEL VIEW                                     -->
+  <!-- ========================================================================= -->
+  <section id="view-operator" class="view-container">
+    <div class="operator-grid">
+      <div>
+        <div class="metric-hero-banner">
+          <div>
+            <div class="metric-hero-title">Surge Protection Subsidy Pool</div>
+            <div class="metric-hero-val" id="op-full-subsidy-val">₹0.00</div>
+            <div style="font-size:13px; color:#A0A0A0; margin-top:4px;">Cumulative money held back from inflated passenger fares</div>
+          </div>
+          <div>
+            <span class="status-badge Protected" style="font-size:14px; padding:8px 16px;">ENGINE ACTIVE</span>
+          </div>
+        </div>
+
+        <div id="operator-map" class="map-frame" style="height: 400px;"></div>
+      </div>
+
+      <div>
+        <div class="base-card">
+          <h2 style="font-size:20px; font-weight:800; margin-bottom:12px;">Active Zones Overview</h2>
+          <div id="op-full-zones-container"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 5: HOW SURGE PRICING CAN BE GAMED (EXPLAINER ARTICLE)                -->
+  <!-- ========================================================================= -->
+  <section id="view-explainer" class="view-container">
+    <article class="explainer-container">
+      
+      <header class="explainer-header">
+        <span class="base-logo-badge" style="margin-bottom:12px; display:inline-block;">Engineering & Product Deep Dive</span>
+        <h1>How Surge Pricing Can Be Gamed</h1>
+        <p class="explainer-subtitle">
+          And how algorithmic verification protects riders from artificial shortage manipulation without breaking market clearing mechanics.
+        </p>
+      </header>
+
+      <!-- Section 1 -->
+      <section class="explainer-section">
+        <h2>1. What surge pricing is</h2>
+        <p>
+          At its core, ride-hailing platforms operate on continuous spatial markets. When demand in a zone (e.g. Bandra Kurla Complex at 6:00 PM) outpaces the immediate supply of available drivers, the ordinary multiplier rises above 1.0×.
+        </p>
+        <p>
+          This multiplier has two economic jobs:
+        </p>
+        <ul style="margin-left: 24px; margin-bottom: 16px; font-size: 15px; line-height: 1.8;">
+          <li><strong>Demand throttling:</strong> High prices convince price-sensitive riders to wait or use public transit.</li>
+          <li><strong>Supply recruitment:</strong> High earnings broadcast a signal to idle drivers in adjacent areas (Kurla, Santacruz) to drive into BKC.</li>
+        </ul>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="explainer-section">
+        <h2>2. Why a shortage can be fake</h2>
+        <p>
+          Because standard pricing algorithms compute:
+        </p>
+        <div style="background:var(--color-gray-100); padding:16px; font-family:var(--font-mono); margin-bottom:16px; font-size:13px; border:1px solid var(--color-tertiary);">
+          surge_multiplier = f( ride_requests ÷ available_drivers )
+        </div>
+        <p>
+          The denominator is vulnerable to collective behavior. If a group of 10–20 drivers waiting outside a commercial hub coordinate to toggle their apps <strong>Offline</strong> simultaneously, the system perceives a sudden supply collapse.
+        </p>
+        <p>
+          The algorithm responds by spiking the surge multiplier to 2.0× or 2.5×. Minutes later, the drivers go back <strong>Online</strong> together and immediately accept the inflated fares. The passenger has no visibility into whether the shortage was genuine or artificial.
+        </p>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="explainer-section">
+        <h2>3. Why you can't just block every shortage</h2>
+        <p>
+          A naive solution is to cap or disallow rapid surge jumps. However, <strong>genuine shortages happen all the time</strong>:
+        </p>
+        <ul style="margin-left: 24px; margin-bottom: 16px; font-size: 15px; line-height: 1.8;">
+          <li>Sudden torrential Mumbai monsoon downpours.</li>
+          <li>A concert or cricket match letting out at Jio World Drive.</li>
+          <li>A severe highway accident blocking the Bandra-Worli Sea Link.</li>
+        </ul>
+        <p>
+          If you block pricing during a real shortage, no new drivers will travel into the zone to clear the backlog. Riders will experience infinite wait times or total lack of service.
+        </p>
+      </section>
+
+      <!-- Section 4 -->
+      <section class="explainer-section">
+        <h2>4. The Four Possible Outcomes</h2>
+        <table class="outcome-matrix-table">
+          <thead>
+            <tr>
+              <th>Shortage Reality</th>
+              <th>Protection Policy</th>
+              <th>Rider Impact</th>
+              <th>Driver Impact</th>
+              <th>System Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Genuine Shortage</strong></td>
+              <td>Protection OFF</td>
+              <td>Pays fair surge for urgent supply</td>
+              <td>Earns legitimate premium for entering traffic</td>
+              <td><span class="status-badge Normal">Optimal Clearing</span></td>
+            </tr>
+            <tr>
+              <td><strong>Manipulated Fake Shortage</strong></td>
+              <td>Protection ON (Frozen)</td>
+              <td><strong>Protected at pre-shortage 1.0× fare</strong></td>
+              <td>Cannot exploit artificial spike</td>
+              <td><span class="status-badge Protected">Gamer Thwarted</span></td>
+            </tr>
+            <tr>
+              <td><strong>Manipulated Fake Shortage</strong></td>
+              <td>Protection OFF</td>
+              <td>Overpays by 100%–200% on manipulated fare</td>
+              <td>Unearned windfall profit</td>
+              <td><span class="status-badge Blocked">Exploited</span></td>
+            </tr>
+            <tr>
+              <td><strong>Genuine Shortage</strong></td>
+              <td>Protection ON (False Positive)</td>
+              <td>Underpays temporarily</td>
+              <td>Delayed arrival incentive until released</td>
+              <td><span class="status-badge Uncertain">Subsidy Gap</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 5: Interactive Simulation Walkthrough -->
+      <section class="explainer-section">
+        <h2>5. Interactive Walkthrough with Live Numbers</h2>
+        <p>
+          Step through this real-life scenario to see how the mathematical heuristics respond minute-by-minute:
+        </p>
+
+        <div class="base-card" style="padding: 24px; background: var(--color-white); border: 1px solid var(--color-primary);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div>
+              <span style="font-size:11px; color:var(--color-info); text-transform:uppercase; letter-spacing:0.05em;">Timeline Minute:</span>
+              <span style="font-size:22px; font-weight:700; font-family:var(--font-mono); margin-left:8px;" id="ex-sim-minute">00:00</span>
+            </div>
+            <span class="status-badge Normal" id="ex-sim-status-badge">Normal</span>
+          </div>
+
+          <!-- Timeline Steps Buttons -->
+          <div style="display:flex; gap:6px; margin-bottom:18px;">
+            <button class="edit-pill-btn timeline-step-btn active">Min 0 (Base)</button>
+            <button class="edit-pill-btn timeline-step-btn">Min 2 (Collapse)</button>
+            <button class="edit-pill-btn timeline-step-btn">Min 3 (Check 1)</button>
+            <button class="edit-pill-btn timeline-step-btn">Min 4 (Rebound)</button>
+            <button class="edit-pill-btn timeline-step-btn">Min 5 (Clear)</button>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin-bottom:16px; background:var(--color-gray-100); padding:14px; border:1px solid var(--color-gray-200);">
+            <div>
+              <div style="font-size:11px; color:var(--color-info); text-transform:uppercase;">ONLINE DRIVERS</div>
+              <div style="font-size:18px; font-weight:700; font-family:var(--font-mono);" id="ex-sim-drivers">12 drivers</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--color-info); text-transform:uppercase;">REQUEST VOLUME</div>
+              <div style="font-size:18px; font-weight:700; font-family:var(--font-mono);" id="ex-sim-requests">4 rides</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--color-info); text-transform:uppercase;">ORDINARY SURGE</div>
+              <div style="font-size:18px; font-weight:700; font-family:var(--font-mono); color:var(--color-error);" id="ex-sim-ord-mult">1.0x</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--color-info); text-transform:uppercase;">CHARGED TO RIDER</div>
+              <div style="font-size:18px; font-weight:700; font-family:var(--font-mono); color:var(--color-primary);" id="ex-sim-prot-mult">1.0x</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface-base); padding:14px; border-left:3px solid var(--color-primary); margin-bottom:18px; border-top:1px solid var(--color-gray-200); border-right:1px solid var(--color-gray-200); border-bottom:1px solid var(--color-gray-200);">
+            <div style="font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; color:var(--color-primary);">Engine Assessment</div>
+            <p id="ex-sim-decision-text" style="font-size:14px; margin-bottom:0; font-weight:300;">
+              Baseline market equilibrium. Available supply comfortably meets rider demand.
+            </p>
+          </div>
+
+          <div style="display:flex; justify-content:space-between;">
+            <button id="ex-btn-prev-step" class="base-btn-secondary">&larr; Previous Minute</button>
+            <button id="ex-btn-next-step" class="base-btn-secondary">Next Minute &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6 -->
+      <section class="explainer-section">
+        <h2>6. How the 5-Signal Verification Works</h2>
+        <p>
+          When the Surge Protection Window opens, the system re-evaluates the zone at minute 1 and every subsequent minute. It synthesizes five quantitative signals:
+        </p>
+
+        <div class="base-card">
+          <div class="signal-row" style="padding: 12px 0;">
+            <div>
+              <strong>1. Request Volume (+1.5 / -2.0)</strong>
+              <div style="font-size:12px; color:var(--base-gray-700);">Genuine shortages correlate with sudden demand surges (+20%). Flat demand indicates supply manipulation.</div>
+            </div>
+          </div>
+          <div class="signal-row" style="padding: 12px 0;">
+            <div>
+              <strong>2. Driver Movement (+1.0 / -2.5)</strong>
+              <div style="font-size:12px; color:var(--base-gray-700);">If "missing" drivers reappear clustered in immediately adjacent zones (e.g. Kurla or Santacruz), geolocation gaming is suspected.</div>
+            </div>
+          </div>
+          <div class="signal-row" style="padding: 12px 0;">
+            <div>
+              <strong>3. Recovery Speed (+1.0 / -1.0)</strong>
+              <div style="font-size:12px; color:var(--base-gray-700);">Warning signal only. Rapid driver re-entry within 2 minutes of the price spike hints at coordinated return.</div>
+            </div>
+          </div>
+          <div class="signal-row" style="padding: 12px 0;">
+            <div>
+              <strong>4. Traffic & Road Conditions (+1.0 / 0.0)</strong>
+              <div style="font-size:12px; color:var(--base-gray-700);">Corroborates localized congestion or heavy rain.</div>
+            </div>
+          </div>
+          <div class="signal-row" style="padding: 12px 0;">
+            <div>
+              <strong>5. Data Reliability (CRITICAL GATE)</strong>
+              <div style="font-size:12px; color:var(--base-gray-700);">If driver heartbeats are stale (&gt;20s) or missing, the gate closes and forces outcome to 'Uncertain', keeping the fare safely protected.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 7 -->
+      <section class="explainer-section">
+        <h2>7. Limits, Risks & Second-Order Effects</h2>
+        <p>
+          No algorithmic defense is without trade-offs. The Surge-Price Protection engine explicitly balances three known risks:
+        </p>
+        <ul style="margin-left: 24px; font-size: 15px; line-height: 1.8;">
+          <li><strong>Delaying genuine market signals:</strong> In a real emergency, capping the surge for 1–2 minutes delays the price incentive for drivers to travel across town. This is why confirmed genuine checks release the cap immediately.</li>
+          <li><strong>The 15-Minute Safety Valve:</strong> An inconclusive zone cannot stay frozen forever. At 15 minutes, the cap is gradually released and flagged for human operations review to prevent permanent stagnation.</li>
+          <li><strong>Auditable Silent Protection:</strong> Because riders never see disruptive error dialogs or panic messages, all overrides must be logged immutably in the audit log to settle driver earnings discrepancies.</li>
+        </ul>
+      </section>
+
+    </article>
+  </section>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Application JS Modules -->
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/rider.js"></script>
+  <script src="/static/js/driver.js"></script>
+  <script src="/static/js/operator.js"></script>
+  <script src="/static/js/explainer.js"></script>
+
+</body>
+</html>
